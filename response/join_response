@@ -1,0 +1,5 @@
+JOINED_CHATROOM: {roomname}
+SERVER_IP: {serverip}
+PORT: 0
+ROOM_REF: {roomref}
+JOIN_ID: {joinid}
