@@ -1,0 +1,3 @@
+LEAVE_CHATROOM: {roomref}
+JOIN_ID: {joinid}
+CLIENT_NAME: {clientname}
