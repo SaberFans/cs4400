@@ -63,15 +63,20 @@ def chat_server():
                             print sock, 'sock removed'
                             # remove the socket that's broken    
                             if sock in SOCKET_LIST:
+                                
                                 SOCKET_LIST.remove(sock)
+                                clientname = SOCKETCLIENTMAP[sock]
+                                rooms = CLIENTROOMMAP[clientname]                            
+                                # remove users/sockets from all chat rooms
+                                
+                                for room in rooms:
+                                    CHATROOM[room]['socks'].remove(sock)
+                                    CHATROOM[room]['users'].remove(clientname)
+                                SOCKETCLIENTMAP.pop(sock,None)    
+                                CLIENTROOMMAP.pop(clientname,None)
+                                
+
                             
-                            clientname = SOCKETCLIENTMAP[sock]
-                            rooms = CLIENTROOMMAP[clientname]                            
-                            # remove users/sockets from all chat rooms
-                            for room in rooms:
-                                CHATROOM[room]['socks'].remove(sock)
-                                CHATROOM[room]['users'].remove(clientname)
-                            print CHATROOM
                     # exception 
                     except Exception as e:
                         print e, 'error in connection with client'
