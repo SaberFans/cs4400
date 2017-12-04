@@ -1,0 +1,3 @@
+CHAT:{roomref}
+CLIENT_NAME:{clientname}
+MESSAGE:{clientname} has joined this chatroom.

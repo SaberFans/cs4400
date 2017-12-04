@@ -1,0 +1,4 @@
+HELO {hellotxt}
+IP:127.0.0.1
+Port:{port}
+StudentID:14325922

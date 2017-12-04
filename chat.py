@@ -37,10 +37,11 @@ def chat_server():
         # get the list sockets which are ready to be read through select
         # 4th arg, time_out  = 2 : poll every 2 sec
         try: 
+            
             ready_to_read,ready_to_write,in_error = select.select(SOCKET_LIST,[],[],2)
             
             for sock in ready_to_read:
-                
+               
                 # a new connection request recieved
                 if sock == server_socket: 
                     sockfd, addr = server_socket.accept()
@@ -57,50 +58,64 @@ def chat_server():
                         data = sock.recv(RECV_BUFFER)
                         if data:
                             # there is something in the socket
+                            print '~~~~~~~~',data,'~~~~~~~~~'
                             handlemsg(server_socket, sock, data)
                             # broadcast(server_socket, sock, "\r" + '[' + str(sock.getpeername()) + '] ' + data)  
                         else:
                             print sock, 'sock removed'
                             # remove the socket that's broken    
                             if sock in SOCKET_LIST:
-                                
                                 SOCKET_LIST.remove(sock)
-                                clientname = SOCKETCLIENTMAP[sock]
-                                rooms = CLIENTROOMMAP[clientname]                            
-                                # remove users/sockets from all chat rooms
-                                
-                                for room in rooms:
-                                    CHATROOM[room]['socks'].remove(sock)
-                                    CHATROOM[room]['users'].remove(clientname)
-                                SOCKETCLIENTMAP.pop(sock,None)    
-                                CLIENTROOMMAP.pop(clientname,None)
-                                
+                                if sock in SOCKETCLIENTMAP:  
+                                    clientname = SOCKETCLIENTMAP[sock]
+                                    if clientname in CLIENTROOMMAP:
+                                        rooms = CLIENTROOMMAP[clientname]                            
+                                        # remove users/sockets from all chat rooms
+                                    
+                                        for room in rooms:
+                                            CHATROOM[room]['socks'].remove(sock)
+                                            CHATROOM[room]['users'].remove(clientname)
 
-                            
+                                    SOCKETCLIENTMAP.pop(sock,None)    
+                                    CLIENTROOMMAP.pop(clientname,None)
                     # exception 
-                    except Exception as e:
-                        print e, 'error in connection with client'
-        except Exception as e:
-            print e, 'error occurred'
+                    except Exception as exe:
+                        print exe
+                        errorres = dict()
+                        errorres['desc'] ='Error in client connection'
+                        message = getresponse(errorres,'error_response')
+                        sock.send(message)
+        except Exception as exe:
+            print exe, 'error occurred in socker server'
 
     server_socket.close()
 def handlemsg(server_socket, sock, message):
-    if message == 'HELO text\n':
-        print message + 'IP:{}\nPort:{}\nStudentID:{}\n'.format(sock.getsockname()[0], sock.getsockname()[1], studentId)
-    elif message == 'KILL_SERVICE\n':
+    if message == 'KILL_SERVICE\n':
         print 'chat server is shutting down'
         import os
         os._exit(1)
     # chat messages
     else:
-        print '====\n',message, '\n===='
+        
         import re
         matchjoin = re.search(r'JOIN_CHATROOM:\s*.+', message)
         matchchat = re.search(r'CHAT:\s*.+', message)
         matchleave = re.search(r'LEAVE_CHATROOM:\s*.+', message)
         matchdiscon = re.search(r'DISCONNECT:\s*.+', message)
+        matchhello = re.search(r'HELO\s*.+', message)
+        # helo text case
+        if matchhello:
+           
+            helotxt = matchhello.group()
+            txtpref = helotxt.find('HELO')
+            helotxt = helotxt[txtpref+len('HELO'):].strip()
+            txtpayload = dict()
+            txtpayload['hellotxt']=helotxt
+            txtpayload['port']=PORT
+            sock.sendall(getresponse(txtpayload,'hello_response'))
+
         # join room case:
-        if matchjoin:
+        elif matchjoin:
             room = matchjoin.group()
             roomprefix = room.find('JOIN_CHATROOM:')
             roomname = room[roomprefix+len('JOIN_CHATROOM:'):].strip()
@@ -109,7 +124,7 @@ def handlemsg(server_socket, sock, message):
             conn_info = dict() 
             conn_info['serverip'] = getserverIP()
             conn_info['roomname'] = roomname
-
+            
             # create chat room if no room before
             if roomname not in CHATROOM:
 
@@ -123,10 +138,12 @@ def handlemsg(server_socket, sock, message):
             # add user associated socks in chatroom
             joinmsg = message
             if user:
+               
                 user = user.group()
                 name = user[user.find('CLIENT_NAME:')+len('CLIENT_NAME:'):].strip()
                 joinmsg = name + ' has joined this chatroom.'
                 if name not in CHATROOM[roomname]['users']:
+
                     # add user into chat room
                     CHATROOM[roomname]['users'].append(name)
                     # add sockets 
@@ -145,10 +162,15 @@ def handlemsg(server_socket, sock, message):
                     print 'user already joined....' 
             # update joinid
             conn_info['joinid']=len(CHATROOM[roomname]['socks'])
-            sock.send(getresponse(conn_info,'join_response'))
 
+            sock.sendall(getresponse(conn_info,'join_response'))
+
+            conn_info['clientname'] = name
+            
+            # sock.sendall(getresponse(conn_info,'join_response2'))
+            
             # broadcast join
-            broadcastSameRoom(sock, roomid, joinmsg)
+            broadcastSameRoom(None, roomid, getresponse(conn_info,'join_response2'))
         elif matchchat:
             messageinfo = re.search(r'MESSAGE:\s*.+', message).group()
             messageinfo = messageinfo[messageinfo.index('MESSAGE:')+len('MESSAGE:'):].strip()
@@ -167,7 +189,7 @@ def handlemsg(server_socket, sock, message):
             print 'broadcasting chat message', message,'====='
             broadcastSameRoom(None, roominfo, message)
         elif matchleave:
-            print 'responding leavinggggg'
+            print 'responding leaving'
             joinid = re.search(r'JOIN_ID:\s*.+', message).group()
             joinid = joinid[joinid.index('JOIN_ID:')+len('JOIN_ID:'):].strip()
             roominfo = re.search(r'LEAVE_CHATROOM:\s*.+', message).group()
@@ -187,15 +209,12 @@ def handlemsg(server_socket, sock, message):
                 CHATROOM[roomname]['users'].remove(clientname)
                 CLIENTROOMMAP[clientname].remove(roomname)
 
-
-                message = getresponse(leaveresponse,'leave_response')
-                # repond leave
+                leaveresponse['clientname'] = clientname
                 
-                sock.send(message)
+                sock.sendall(getresponse(leaveresponse,'leave_response'))
+                sock.sendall(getresponse(leaveresponse,'leave_response2')+'\n')
 
-                # broadcast
-                leavemsg = clientname + ' has left this chatroom.'
-                broadcastSameRoom(sock, roominfo, leavemsg)
+                broadcastSameRoom(sock, roominfo, getresponse(leaveresponse,'leave_response2')+'\n')
             else:
                 print 'client or room info does not exists'
         elif matchdiscon:
@@ -206,6 +225,7 @@ def handlemsg(server_socket, sock, message):
             rooms = CLIENTROOMMAP[clientname]
 
             print 'remove user/socks from chat room'
+            CLIENTROOMMAP.pop(clientname)
             print rooms
 
             for room in rooms:
@@ -214,11 +234,26 @@ def handlemsg(server_socket, sock, message):
                 if scktorm in CHATROOM[room]['socks']:
                     CHATROOM[room]['socks'].remove(scktorm)
 
+                leaveresponse=dict()
+                leaveresponse['roomref']=CHATROOM[room]['id']
+                leaveresponse['clientname'] = clientname
+                
+                sock.sendall(getresponse(leaveresponse,'leave_response2')+'\n')
+                # broadcast leave
+                broadcastSameRoom(None, CHATROOM[room]['id'], getresponse(leaveresponse,'leave_response2')+'\n')
+
             # close socket 
             if scktorm in SOCKET_LIST:
                 SOCKET_LIST.remove(sock)
+
+
         else:
-            print ' nothing matched', 
+            
+            errorres = dict()
+            errorres['desc'] ='No Matching Protocol'
+            message = getresponse(errorres,'error_response')
+            sock.sendall(message)
+            
         print CHATROOM
 
 # broadcast chat messages to connected clients in same chat room
@@ -231,7 +266,8 @@ def broadcastSameRoom(sock, roominfo, message):
             # send the message only to peer
             if socket is not sock:
                 try :
-                    socket.send(message)
+                    print '>>>>><><><<><><<><><><><><><><><>'
+                    socket.sendall(message)
                 except Exception as e:
                     # broken socket connection
                     print 'broadcast error', e
@@ -241,6 +277,7 @@ def broadcastSameRoom(sock, roominfo, message):
                         SOCKET_LIST.remove(socket)   
     else:
         print 'no roominfo in chatroom', roominfo
+        print 'chatroommap: ', CHATROOMAP
 
 # populate response files with var inputs
 def getresponse(variables, name):
@@ -266,7 +303,7 @@ def broadcast (server_socket, sock, message):
         # send the message only to peer
         if socket != server_socket and socket != sock :
             try :
-                socket.send(message)
+                socket.sendall(message)
             except Exception as e:
                 print 'broadcast error', e
                 # broken socket connection
@@ -277,3 +314,4 @@ def broadcast (server_socket, sock, message):
  
 if __name__ == "__main__":
     sys.exit(chat_server())   
+
