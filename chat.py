@@ -184,7 +184,7 @@ def handlemsg(server_socket, sock, message):
             chatresponse['roomref']=roominfo
             chatresponse['clientname']=clientname
 
-            message = getresponse(chatresponse,'chat_response')
+            message = getresponse(chatresponse,'chat_response')+'\n'
 
             print 'broadcasting chat message', message,'====='
             broadcastSameRoom(None, roominfo, message)
@@ -286,7 +286,10 @@ def getresponse(variables, name):
     response = filestr.format(**variables)
     f.close()
     print 'response: '+ response
-    return response
+    if response.endswith('\n'):
+        return response
+    else:
+        return response+'\n'
 
 def getserverIP():
     try:
