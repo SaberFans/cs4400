@@ -83,7 +83,7 @@ def chat_server():
                         print exe
                         errorres = dict()
                         errorres['desc'] ='Error in client connection'
-                        message = getresponse(errorres,'error_response')
+                        message = getresponse(errorres,'error_response')+"\n"
                         sock.send(message)
         except Exception as exe:
             print exe, 'error occurred in socker server'
@@ -170,7 +170,7 @@ def handlemsg(server_socket, sock, message):
             # sock.sendall(getresponse(conn_info,'join_response2'))
             
             # broadcast join
-            broadcastSameRoom(None, roomid, getresponse(conn_info,'join_response2'))
+            broadcastSameRoom(None, roomid, getresponse(conn_info,'join_response2')+"\n")
         elif matchchat:
             messageinfo = re.search(r'MESSAGE:\s*.+', message).group()
             messageinfo = messageinfo[messageinfo.index('MESSAGE:')+len('MESSAGE:'):].strip()
@@ -212,9 +212,9 @@ def handlemsg(server_socket, sock, message):
                 leaveresponse['clientname'] = clientname
                 
                 sock.sendall(getresponse(leaveresponse,'leave_response'))
-                sock.sendall(getresponse(leaveresponse,'leave_response2')+'\n')
+                sock.sendall(getresponse(leaveresponse,'leave_response2')+"\n")
 
-                broadcastSameRoom(sock, roominfo, getresponse(leaveresponse,'leave_response2')+'\n')
+                broadcastSameRoom(sock, roominfo, getresponse(leaveresponse,'leave_response2')+"\n")
             else:
                 print 'client or room info does not exists'
         elif matchdiscon:
@@ -238,9 +238,9 @@ def handlemsg(server_socket, sock, message):
                 leaveresponse['roomref']=CHATROOM[room]['id']
                 leaveresponse['clientname'] = clientname
                 
-                sock.sendall(getresponse(leaveresponse,'leave_response2')+'\n')
+                sock.sendall(getresponse(leaveresponse,'leave_response2')+"\n")
                 # broadcast leave
-                broadcastSameRoom(None, CHATROOM[room]['id'], getresponse(leaveresponse,'leave_response2')+'\n')
+                broadcastSameRoom(None, CHATROOM[room]['id'], getresponse(leaveresponse,'leave_response2')+"\n")
 
             # close socket 
             if scktorm in SOCKET_LIST:
@@ -251,7 +251,7 @@ def handlemsg(server_socket, sock, message):
             
             errorres = dict()
             errorres['desc'] ='No Matching Protocol'
-            message = getresponse(errorres,'error_response')
+            message = getresponse(errorres,'error_response')+"\n"
             sock.sendall(message)
             
         print CHATROOM
